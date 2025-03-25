@@ -22,7 +22,7 @@ const itemVariants = {
   }
 };
 
-const thumbnailVariantss = {
+const thumbnailVariants = {
   hover: { y: -5, scale: 1.02 },
   tap: { scale: 0.98 }
 };
@@ -81,7 +81,7 @@ function App() {
         const imgUrl = `https://img.youtube.com/vi/${videoId}/${res.value}.jpg`;
         const valid = await checkImageExists(imgUrl);
         return { ...res, url: imgUrl, valid };
-      }))
+      }));
 
       const validThumbs = thumbs.filter(thumb => thumb.valid);
       if (validThumbs.length === 0) {
@@ -109,8 +109,8 @@ function App() {
     setDownloading(quality);
     try {
       const filename = `${videoInfo.channel} - ${videoInfo.title} (${quality}).jpg`
-        .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
-        .substring(0, 100); // Limit filename length
+        .replace(/[<>:"/\\|?*]/g, '')
+        .substring(0, 100);
 
       await chrome.downloads.download({ 
         url,
@@ -164,7 +164,6 @@ function App() {
       variants={containerVariants}
       className="w-[340px] p-4 bg-white rounded-xl shadow-lg"
     >
-      {/* Header */}
       <motion.div 
         variants={itemVariants}
         className="flex justify-between items-center mb-4"
@@ -183,7 +182,6 @@ function App() {
         </motion.button>
       </motion.div>
 
-      {/* Content */}
       <motion.div variants={itemVariants} className="mb-2">
         {isLoading ? (
           <div className="grid grid-cols-2 gap-3">
@@ -206,10 +204,11 @@ function App() {
                 <motion.div
                   key={thumb.value}
                   layout
-                  variants={itemVariants}
+                  initial="hidden"
+                  animate="show"
                   whileHover="hover"
                   whileTap="tap"
-                  variants={thumbnailVariantss}
+                  variants={thumbnailVariants}
                   className="relative w-[150px] h-[84px]"
                 >
                   <div className="w-full h-full rounded-lg overflow-hidden shadow-sm">
@@ -247,7 +246,6 @@ function App() {
         )}
       </motion.div>
 
-      {/* Success Toast */}
       <AnimatePresence>
         {success && (
           <motion.div
