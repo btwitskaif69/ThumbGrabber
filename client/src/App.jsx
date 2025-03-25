@@ -18,7 +18,7 @@ const itemVariants = {
   show: { 
     opacity: 1, 
     y: 0,
-    transition: { duration: 0.3 }
+    transition: { duration: 0.3, ease: "easeOut" }
   }
 };
 
@@ -33,7 +33,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [downloading, setDownloading] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [videoInfo, setVideoInfo] = useState({ title: '', channel: '' });
+  const [channelName, setChannelName] = useState('');
 
   useEffect(() => { 
     fetchThumbnails(); 
@@ -48,7 +48,7 @@ function App() {
       const url = tab?.url;
 
       if (!url?.includes('youtube.com/watch')) {
-        throw new Error('Please open a YouTube video first');
+        throw new Error('Open a YouTube video to grab thumbnails');
       }
 
       const videoId = new URL(url).searchParams.get('v');
@@ -56,19 +56,13 @@ function App() {
         throw new Error('Could not get video details');
       }
 
-      // Get video title and channel name
-      const videoData = await chrome.scripting.executeScript({
+      // Get channel name only
+      const result = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => ({
-          title: document.querySelector('h1.ytd-watch-metadata')?.textContent?.trim() || 'YouTube Video',
-          channel: document.querySelector('#text.ytd-channel-name a')?.textContent?.trim() || 'Unknown Channel'
-        })
+        func: () => document.querySelector('#text.ytd-channel-name a')?.textContent?.trim() || 'Unknown Channel'
       });
 
-      setVideoInfo({
-        title: videoData[0].result.title,
-        channel: videoData[0].result.channel
-      });
+      setChannelName(result[0].result);
 
       const resolutions = [
         { name: 'Max', value: 'maxresdefault' },
@@ -85,7 +79,7 @@ function App() {
 
       const validThumbs = thumbs.filter(thumb => thumb.valid);
       if (validThumbs.length === 0) {
-        throw new Error('No thumbnails available for this video');
+        throw new Error('No thumbnails available');
       }
 
       setThumbnails(validThumbs);
@@ -108,9 +102,9 @@ function App() {
   const downloadImage = async (url, quality) => {
     setDownloading(quality);
     try {
-      const filename = `${videoInfo.channel} - ${videoInfo.title} (${quality}).jpg`
+      const filename = `${channelName} (${quality}).jpg`
         .replace(/[<>:"/\\|?*]/g, '')
-        .substring(0, 100);
+        .substring(0, 80);
 
       await chrome.downloads.download({ 
         url,
@@ -121,7 +115,7 @@ function App() {
       setTimeout(() => {
         setDownloading(null);
         setSuccess(false);
-      }, 3000);
+      }, 2000);
     } catch (error) {
       setError('Download failed. Please try again.');
       setDownloading(null);
@@ -130,29 +124,29 @@ function App() {
 
   if (error) {
     return (
-      <motion.div 
-        initial="hidden"
-        animate="show"
-        variants={containerVariants}
-        className="w-[340px] p-4 bg-white rounded-xl shadow-md"
+<motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-[320px] p-6 bg-white rounded-xl shadow-lg border border-gray-200"
       >
-        <motion.div variants={itemVariants} className="flex flex-col items-center space-y-3">
-          <FiAlertCircle className="w-8 h-8 text-red-500" />
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-gray-800">ThumbGrabber</h2>
-            <p className="text-sm text-gray-600 mt-1">{error}</p>
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-14 h-14 bg-red-50 rounded-full flex items-center justify-center">
+            <FiAlertCircle className="text-red-500 text-2xl" />
           </div>
-          <motion.button
+          
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 mb-1">Error</h2>
+            <p className="text-gray-600 text-sm">{error}</p>
+          </div>
+
+          <button
             onClick={fetchThumbnails}
-            variants={itemVariants}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg flex items-center"
+            className="mx-auto px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center"
           >
             <FiRefreshCw className="mr-2" />
-            Try Again
-          </motion.button>
-        </motion.div>
+            Reload
+          </button>
+        </div>
       </motion.div>
     );
   }
@@ -162,27 +156,51 @@ function App() {
       initial="hidden"
       animate="show"
       variants={containerVariants}
-      className="w-[340px] p-4 bg-white rounded-xl shadow-lg"
+      className="w-[340px] p-5 bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20"
     >
+      {/* Header with glass morphism */}
       <motion.div 
         variants={itemVariants}
-        className="flex justify-between items-center mb-4"
+        className="flex justify-between items-center mb-5"
       >
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-          ThumbGrabber
-        </h1>
+<div className="mb-1">
+  <div className="inline-block">
+    <h1 className="text-2xl font-bold text-white">
+      <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+        Thumb
+      </span>
+      <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+        Grabber
+      </span>
+    </h1>
+    {channelName && (
+      <motion.div
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="flex items-center"
+      >
+        <span className="text-base font-medium text-gray-400">@</span>
+        <span className="text-base font-semibold text-gray-400">
+          {channelName}
+        </span>
+      </motion.div>
+    )}
+  </div>
+</div>
         <motion.button 
           onClick={fetchThumbnails}
           disabled={isLoading}
-          whileHover={{ rotate: 20 }}
+          whileHover={{ rotate: 90 }}
           whileTap={{ scale: 0.9 }}
-          className="p-1.5 bg-gray-100 rounded-lg"
+          className="p-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm"
         >
-          <FiRefreshCw className={`w-4 h-4 text-gray-600 ${isLoading ? 'animate-spin' : ''}`} />
+          <FiRefreshCw className={`w-4 h-4 text-white ${isLoading ? 'animate-spin' : ''}`} />
         </motion.button>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="mb-2">
+      {/* Thumbnail grid */}
+      <motion.div variants={itemVariants} className="mb-3">
         {isLoading ? (
           <div className="grid grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (
@@ -191,10 +209,8 @@ function App() {
                 initial={{ opacity: 0.6 }}
                 animate={{ opacity: 1 }}
                 transition={{ repeat: Infinity, duration: 1.5, repeatType: "reverse" }}
-                className="rounded-lg overflow-hidden w-[150px] h-[84px]"
-              >
-                <div className="w-full h-full bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse" />
-              </motion.div>
+                className="rounded-xl overflow-hidden w-[150px] h-[84px] bg-white/20 backdrop-blur-sm"
+              />
             ))}
           </div>
         ) : (
@@ -209,36 +225,43 @@ function App() {
                   whileHover="hover"
                   whileTap="tap"
                   variants={thumbnailVariants}
-                  className="relative w-[150px] h-[84px]"
+                  className="relative w-[150px] h-[84px] rounded-xl overflow-hidden group"
                 >
-                  <div className="w-full h-full rounded-lg overflow-hidden shadow-sm">
-                    <img
-                      src={thumb.url}
-                      alt={thumb.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <motion.button
-                      onClick={() => downloadImage(thumb.url, thumb.name)}
-                      disabled={downloading === thumb.name}
-                      initial={{ opacity: 0 }}
-                      whileHover={{ opacity: 1 }}
-                      className={`absolute bottom-0 left-0 right-0 flex items-center justify-center 
-                        ${downloading === thumb.name ? 'bg-gray-800' : 'bg-blue-600'}
-                        text-white text-xs font-medium h-8`}
+                  <img
+                    src={thumb.url}
+                    alt={thumb.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <motion.button
+                    onClick={() => downloadImage(thumb.url, thumb.name)}
+                    disabled={downloading === thumb.name}
+                    initial={{ opacity: 0 }}
+                    whileHover={{ opacity: 1 }}
+                    className={`absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-center p-2 ${
+                      downloading === thumb.name ? 'opacity-100' : ''
+                    }`}
+                  >
+                    <motion.span
+                      whileHover={{ scale: 1.05 }}
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+                        downloading === thumb.name 
+                          ? 'bg-gray-800/90 text-white/90' 
+                          : 'bg-white/90 text-gray-900 hover:bg-white'
+                      }`}
                     >
                       {downloading === thumb.name ? (
-                        <motion.span className="flex items-center">
+                        <>
                           <FiDownload className="mr-1.5 animate-bounce" />
                           Downloading...
-                        </motion.span>
+                        </>
                       ) : (
-                        <motion.span className="flex items-center">
+                        <>
                           <FiDownload className="mr-1.5" />
                           {thumb.name}
-                        </motion.span>
+                        </>
                       )}
-                    </motion.button>
-                  </div>
+                    </motion.span>
+                  </motion.button>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -246,13 +269,14 @@ function App() {
         )}
       </motion.div>
 
+      {/* Success notification */}
       <AnimatePresence>
         {success && (
           <motion.div
             initial={{ x: 100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 100, opacity: 0 }}
-            className="fixed bottom-4 right-4 flex items-center px-3 py-2 bg-green-500 text-white text-xs font-medium rounded-lg shadow-md"
+            className="fixed bottom-4 right-4 flex items-center px-4 py-2.5 bg-green-500/90 text-white text-sm font-medium rounded-xl shadow-lg backdrop-blur-sm"
           >
             <FiCheckCircle className="mr-2" />
             Download started!
